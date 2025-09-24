@@ -29,8 +29,7 @@ $router->get('/search', function () {
 
 // Page 5: Tradie Details Page
 $router->get('/tradie/{id}', function ($id) {
-    // Fetch tradie info by $id in future
-    return view('pages.public.tradie-details');
+    return view('pages.public.tradie-details', ['id' => $id]);
 });
 
 // Admin Login Page (MPA)

@@ -50,6 +50,23 @@ This project is a PHP (Lumen) application for the Tradie White Page multi-page f
 - Define routes in `routes/web.php`.
 - Run tests from the `tests/` folder.
 
+## Environment Variables
+
+Copy `.env.example` to `.env` and set values as needed. Key variable:
+
+- `API_BASE_URL` — the gateway domain for all backend API calls.
+	- Local example: `http://localhost:8888`
+	- Production (Railway): set in the Service Variables to your public domain, e.g. `https://<your-backend>.up.railway.app`
+
+In Blade files, JavaScript reads this value via:
+
+```html
+<script>
+	const apiBaseUrl = "{{ env('API_BASE_URL') }}";
+	// use apiBaseUrl to build API URLs
+</script>
+```
+
 ## License
 
 This project is open-sourced software licensed under the MIT license.

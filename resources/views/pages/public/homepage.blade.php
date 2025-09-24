@@ -9,7 +9,9 @@
         <p class="mt-4 text-xl text-blue-100">Connect with qualified professionals for all your home improvement needs</p>
         <div class="mt-10 bg-white p-4 rounded-lg shadow-2xl max-w-3xl mx-auto">
             <form action="/search" method="GET" class="flex flex-col sm:flex-row gap-2">
-                <input type="text" name="service" placeholder="Service Type (e.g., Plumbing)" class="flex-grow p-4 border rounded-md text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+                <select name="service" id="service-dropdown" class="flex-grow p-4 border rounded-md text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+                    <option value="" disabled selected>Select a Service...</option>
+                </select>
                 <input type="text" name="location" placeholder="Enter suburb or postcode" class="flex-grow p-4 border rounded-md text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
                 <button type="submit" class="bg-yellow-500 text-white px-8 py-4 rounded-md font-bold hover:bg-yellow-600 transition duration-300">Search Tradies</button>
             </form>
@@ -40,3 +42,30 @@
     </div>
 </section>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    const serviceDropdown = document.getElementById('service-dropdown');
+    const apiBaseUrl = "{{ env('API_BASE_URL') }}";
+
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/services`);
+        if (!response.ok) throw new Error('Failed to fetch services');
+        const services = await response.json();
+        services.forEach(service => {
+            const option = document.createElement('option');
+            option.value = service.name;
+            option.textContent = service.name;
+            serviceDropdown.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error populating services:', error);
+        const errorOption = document.createElement('option');
+        errorOption.textContent = 'Could not load services';
+        errorOption.disabled = true;
+        serviceDropdown.appendChild(errorOption);
+    }
+});
+</script>
+@endpush

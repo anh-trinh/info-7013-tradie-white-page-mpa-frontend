@@ -1,6 +1,6 @@
 @extends('layouts.public')
 
-@section('title', "Mike's Plumbing Services")
+@section('title', 'Tradie Details')
 
 @section('content')
 <div class="container mx-auto px-6 py-12">
@@ -8,34 +8,33 @@
         <div class="lg:col-span-2 bg-white p-8 rounded-lg shadow-md">
             <div class="flex justify-between items-start mb-6">
                 <div>
-                    <h1 class="text-4xl font-bold text-gray-800">Mike's Plumbing Services</h1>
-                    <div class="flex items-center mt-2"><span class="text-yellow-500">★★★★</span><span class="text-gray-300">★</span><span class="text-gray-600 ml-2">4.8 (127 reviews)</span></div>
-                    <p class="text-md text-gray-500 mt-1">Melbourne, VIC - 5km away</p>
+                    <h1 id="tradie-name" class="text-4xl font-bold text-gray-800">Loading...</h1>
+                    <div id="tradie-rating" class="flex items-center mt-2 text-gray-600"></div>
+                    <p id="tradie-location" class="text-md text-gray-500 mt-1"></p>
                 </div>
-                <p class="text-3xl font-bold text-blue-600">$85/hour <span class="block text-sm font-normal text-gray-500 text-right">starting rate</span></p>
+                <p id="tradie-rate" class="text-3xl font-bold text-blue-600"></p>
             </div>
             <div class="border-t pt-6 mb-8">
                 <h2 class="text-2xl font-semibold mb-3">About</h2>
-                <p class="text-gray-700 leading-relaxed">Licensed plumber with over 15 years of experience. Specializing in residential and commercial plumbing services. Available for emergency callouts 24/7.</p>
+                <p id="tradie-about" class="text-gray-700 leading-relaxed"></p>
             </div>
             <div class="border-t pt-6 mb-8">
                 <h2 class="text-2xl font-semibold mb-4">Services Offered</h2>
-                <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-gray-700 list-disc list-inside">
-                    <li>Blocked Drains</li><li>Tap Repairs</li><li>Hot Water Systems</li><li>Bathroom Renovations</li><li>Gas Fitting</li><li>Emergency Repairs</li>
-                </ul>
+                <ul id="services-list" class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-gray-700 list-disc list-inside"></ul>
             </div>
             <div class="border-t pt-6">
                 <h2 class="text-2xl font-semibold mb-4">Recent Reviews</h2>
-                <div class="space-y-6">
-                    <div class="border-b pb-4"><div class="flex justify-between items-center"><h3 class="font-bold">Sarah J.</h3><p class="text-sm text-gray-500">2 days ago</p></div><div class="flex items-center my-1"><span class="text-yellow-500">★★★★★</span></div><p class="text-gray-700">Excellent service! Mike was punctual, professional, and fixed our blocked drain quickly. Highly recommended!</p></div>
-                    <div class="border-b pb-4"><div class="flex justify-between items-center"><h3 class="font-bold">David C.</h3><p class="text-sm text-gray-500">1 week ago</p></div><div class="flex items-center my-1"><span class="text-yellow-500">★★★★★</span></div><p class="text-gray-700">Great work on our hot water system replacement, fair pricing and quality workmanship.</p></div>
-                </div>
+                <div id="reviews-container" class="space-y-6"><p>Loading reviews...</p></div>
             </div>
         </div>
         <div class="space-y-8">
             <div class="bg-white p-6 rounded-lg shadow-md">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">Contact Information</h2>
-                <div class="space-y-3 text-gray-700"><p><strong>Phone:</strong> (03) 9876 5432</p><p><strong>Email:</strong> mike@mikesplumbing.com.au</p><p><strong>Website:</strong> www.mikesplumbing.com.au</p></div>
+                <div class="space-y-3 text-gray-700">
+                    <p><strong>Phone:</strong> <span id="tradie-phone"></span></p>
+                    <p><strong>Email:</strong> <span id="tradie-email"></span></p>
+                    <p><strong>Website:</strong> <span id="tradie-website"></span></p>
+                </div>
             </div>
             <div class="bg-white p-6 rounded-lg shadow-md">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">Request Quote</h2>
@@ -50,3 +49,84 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    const tradieId = {{ $id }};
+    const apiBaseUrl = "{{ env('API_BASE_URL') }}";
+
+    const nameEl = document.getElementById('tradie-name');
+    const ratingEl = document.getElementById('tradie-rating');
+    const locationEl = document.getElementById('tradie-location');
+    const rateEl = document.getElementById('tradie-rate');
+    const aboutEl = document.getElementById('tradie-about');
+    const servicesList = document.getElementById('services-list');
+    const reviewsContainer = document.getElementById('reviews-container');
+    const phoneEl = document.getElementById('tradie-phone');
+    const emailEl = document.getElementById('tradie-email');
+    const websiteEl = document.getElementById('tradie-website');
+
+    try {
+        const [profileRes, reviewsRes] = await Promise.all([
+            fetch(`${apiBaseUrl}/api/tradies/${tradieId}`),
+            fetch(`${apiBaseUrl}/api/reviews/tradie/${tradieId}`)
+        ]);
+
+        if (!profileRes.ok || !reviewsRes.ok) {
+            throw new Error('Failed to fetch tradie details');
+        }
+
+        const profile = await profileRes.json();
+        const reviews = await reviewsRes.json();
+
+        nameEl.innerText = profile.business_name || 'Tradie Profile';
+        aboutEl.innerText = profile.about || 'No description available.';
+        locationEl.innerText = profile.location || '';
+        rateEl.innerHTML = profile.base_rate ? `${profile.base_rate} <span class="block text-sm font-normal text-gray-500 text-right">starting rate</span>` : '';
+
+        phoneEl.innerText = profile.phone || '';
+        emailEl.innerText = profile.email || '';
+        websiteEl.innerText = profile.website || '';
+
+        servicesList.innerHTML = '';
+        if (Array.isArray(profile.categories) && profile.categories.length) {
+            profile.categories.forEach(cat => {
+                servicesList.insertAdjacentHTML('beforeend', `<li>${cat.name}</li>`);
+            });
+        } else {
+            servicesList.innerHTML = '<li>No services listed.</li>';
+        }
+
+        ratingEl.innerHTML = '';
+        const rating = Number(profile.rating || 0);
+        const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
+        ratingEl.innerHTML = `<span class="text-yellow-500">${stars}</span>${profile.reviews_count ? `<span class=\"text-gray-600 ml-2\">${rating.toFixed(1)} (${profile.reviews_count} reviews)</span>` : ''}`;
+
+        reviewsContainer.innerHTML = '';
+        if (Array.isArray(reviews) && reviews.length) {
+            reviews.forEach(review => {
+                const date = review.created_at ? new Date(review.created_at).toLocaleDateString() : '';
+                const rs = '★'.repeat(review.rating || 0) + '☆'.repeat(5 - (review.rating || 0));
+                reviewsContainer.insertAdjacentHTML('beforeend', `
+                    <div class="border-b pb-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold">${review.reviewer_name || 'Anonymous'}</h3>
+                            <p class="text-sm text-gray-500">${date}</p>
+                        </div>
+                        <div class="flex items-center my-1"><span class="text-yellow-500">${rs}</span></div>
+                        <p class="text-gray-700">${review.comment || ''}</p>
+                    </div>
+                `);
+            });
+        } else {
+            reviewsContainer.innerHTML = '<p>No reviews yet.</p>';
+        }
+
+    } catch (err) {
+        console.error('Error loading tradie details:', err);
+        nameEl.innerText = 'Could not load profile.';
+    }
+});
+</script>
+@endpush
