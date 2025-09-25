@@ -230,7 +230,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const reviewHtml = `
                     <div class="border-b pb-4 mb-4">
                         <div class="flex justify-between items-center mb-2">
-                            <h3 class="font-bold">${review.reviewer_name || review.name || 'Anonymous'}</h3>
                             <p class="text-sm text-gray-500">${date}</p>
                         </div>
                         ${reviewRatingHtml}
