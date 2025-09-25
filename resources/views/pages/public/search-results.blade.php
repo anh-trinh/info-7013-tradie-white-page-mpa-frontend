@@ -56,21 +56,16 @@ function renderStarsForJs(float $rating, int $reviewCount) {
                 </select>
             </div>
 
-            {{-- Distance Filter --}}
-            <div class="flex-grow">
-                <label for="distance-filter" class="block text-sm font-medium text-gray-700">Distance</label>
-                <select id="distance-filter" name="distance" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option>Within 10km</option>
-                    <option>Within 25km</option>
-                </select>
-            </div>
-
             {{-- Rating Filter --}}
             <div class="flex-grow">
                 <label for="rating-filter" class="block text-sm font-medium text-gray-700">Rating</label>
                 <select id="rating-filter" name="rating" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option>4+ Stars</option>
-                    <option>3+ Stars</option>
+                    <option value="all">All Stars</option>
+                    <option value="1">1+ Stars</option>
+                    <option value="2">2+ Stars</option>
+                    <option value="3">3+ Stars</option>
+                    <option value="4">4+ Stars</option>
+                    <option value="5">5 Stars</option>
                 </select>
             </div>
 
@@ -95,6 +90,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const serviceFilterSelect = document.getElementById('service-filter');
     const resultsContainer = document.getElementById('results-container');
     const resultsSummary = document.getElementById('results-summary');
+    const sortBySelect = document.getElementById('sort-by-filter');
+    const ratingFilterSelect = document.getElementById('rating-filter');
 
     // Client-side star renderer (keeps behavior consistent with tradie details)
     function renderStarRating(rating = 0, reviewCount = 0, showText = true) {
@@ -185,8 +182,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Process all tradies with rating calculation
-            const tradiePromises = tradies.map(async (tradie, index) => {
+            // Enrich all tradies with rating/reviewCount first
+            const enrichedPromises = tradies.map(async (tradie) => {
                 const initial = (tradie.business_name && tradie.business_name.charAt(0)) || 'T';
                 const name = tradie.business_name || 'N/A';
                 const rate = tradie.base_rate ? `$${tradie.base_rate}/hour` : 'Rate on enquiry';
@@ -218,31 +215,50 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
-                // Render rating on client to avoid server-side placeholder issues
-                const ratingHtml = renderStarRating(rating, reviewCount, true);
+                return { id, name, initial, rate, locationDisplay, rating, reviewCount };
+            });
+            
+            // Wait for enrichment
+            const enriched = await Promise.all(enrichedPromises);
 
-                return `
-                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
-                        <div class="flex items-center">
-                            <div class="bg-blue-500 text-white w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-full font-bold text-2xl mr-6">${initial}</div>
-                            <div>
-                                <h2 class="text-xl font-bold text-blue-700">${name} <span class="text-lg font-normal text-gray-600">${rate}</span></h2>
-                                ${ratingHtml}
-                                <p class="text-sm text-gray-500 mt-1">${locationDisplay}</p>
+            // Apply rating filter
+            const ratingFilterValue = ratingFilterSelect?.value || 'all';
+            const minRating = ratingFilterValue === 'all' ? 0 : Number(ratingFilterValue);
+            const filtered = enriched.filter(item => (item.rating || 0) >= minRating);
+
+            // Sort
+            const sortBy = sortBySelect?.value || 'Highest Rated';
+            filtered.sort((a, b) => {
+                if (sortBy === 'Most Reviews') {
+                    if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
+                    return (b.rating || 0) - (a.rating || 0);
+                }
+                // Highest Rated
+                if ((b.rating || 0) !== (a.rating || 0)) return (b.rating || 0) - (a.rating || 0);
+                return b.reviewCount - a.reviewCount;
+            });
+
+            // Render
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-center text-gray-500">No suitable tradies found.</p>';
+            } else {
+                filtered.forEach(({ id, name, initial, rate, locationDisplay, rating, reviewCount }) => {
+                    const cardHtml = `
+                        <div class="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="bg-blue-500 text-white w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-full font-bold text-2xl mr-6">${initial}</div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-blue-700">${name} <span class="text-lg font-normal text-gray-600">${rate}</span></h2>
+                                    ${renderStarRating(rating, reviewCount, true)}
+                                    <p class="text-sm text-gray-500 mt-1">${locationDisplay}</p>
+                                </div>
                             </div>
+                            <a href="/tradie/${id}" class="bg-gray-800 text-white px-6 py-3 rounded-md font-semibold hover:bg-black">View Profile</a>
                         </div>
-                        <a href="/tradie/${id}" class="bg-gray-800 text-white px-6 py-3 rounded-md font-semibold hover:bg-black">View Profile</a>
-                    </div>
-                `;
-            });
-            
-            // Wait for all tradies to be processed
-            const tradieCards = await Promise.all(tradiePromises);
-            
-            // Add all cards to the container
-            tradieCards.forEach(cardHtml => {
-                resultsContainer.insertAdjacentHTML('beforeend', cardHtml);
-            });
+                    `;
+                    resultsContainer.insertAdjacentHTML('beforeend', cardHtml);
+                });
+            }
         } catch (error) {
             console.error('Failed to fetch tradies:', error);
             resultsContainer.innerHTML = '<p class="text-center text-red-500">Failed to load results. Please try again.</p>';
@@ -269,6 +285,10 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         fetchAndDisplayTradies();
     });
+
+    // Re-fetch on sort/rating change for better UX
+    sortBySelect.addEventListener('change', fetchAndDisplayTradies);
+    ratingFilterSelect.addEventListener('change', fetchAndDisplayTradies);
 
     initializePage();
 });
