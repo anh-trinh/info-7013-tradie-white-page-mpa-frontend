@@ -38,13 +38,31 @@
                     <p id="tradie-website-container" style="display: none;"><strong>Website:</strong> <span id="tradie-website"></span></p>
                 </div>
             </div>
-            <div class="bg-white p-6 rounded-lg shadow-md">
+            {{-- Request Quote Card --}}
+            <div id="request-quote-card" class="bg-white p-6 rounded-lg shadow-md">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">Request Quote</h2>
-                <form class="space-y-4">
-                    <div><label class="block text-sm font-medium text-gray-700">Service Needed</label><select class="mt-1 block w-full p-2 border border-gray-300 rounded-md"><option>Blocked Drain</option><option>Hot Water System</option></select></div>
-                    <div><label class="block text-sm font-medium text-gray-700">Description</label><textarea rows="4" placeholder="Describe your job..." class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></textarea></div>
-                    <div><label class="block text-sm font-medium text-gray-700">Preferred Date</label><input type="date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></div>
-                    <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-md font-semibold hover:bg-blue-700">Request Quote</button>
+
+                {{-- Div để hiển thị thông báo --}}
+                <div id="quote-success-message" class="hidden bg-green-100 text-green-800 p-3 rounded mb-4"></div>
+                <div id="quote-error-message" class="hidden bg-red-100 text-red-800 p-3 rounded mb-4"></div>
+
+                <form id="quote-form" class="space-y-4" novalidate>
+                    <div>
+                        <label for="job_description" class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="job_description" rows="4" placeholder="Describe your job..." class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required></textarea>
+                    </div>
+                    <div>
+                        <label for="preferred_date" class="block text-sm font-medium text-gray-700">Preferred Date</label>
+                        <input id="preferred_date" type="date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    {{-- Thêm các trường khác nếu cần, ví dụ Service Address --}}
+                    <div>
+                        <label for="service_address" class="block text-sm font-medium text-gray-700">Service Address</label>
+                        <input id="service_address" type="text" placeholder="e.g., 123 Main St, Sydney" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <button id="quote-submit-button" type="submit" class="w-full bg-blue-600 text-white p-3 rounded-md font-semibold hover:bg-blue-700">
+                        Request Quote
+                    </button>
                 </form>
             </div>
         </div>
@@ -57,8 +75,8 @@
 document.addEventListener('DOMContentLoaded', async function() {
     const tradieId = {{ $id }};
     const apiBaseUrl = "{{ env('API_BASE_URL') }}";
-
-    // Helper to render star rating entirely on the client side (fixes server-side placeholder issue)
+    let tradieProfileData = null; // Lưu profile để gửi quote
+    // ...existing code...
     function renderStarRating(rating = 0, reviewCount = 0, showText = true) {
         const r = Math.min(5, Math.max(0, Number(rating) || 0));
         const count = Number(reviewCount) || 0;
@@ -133,7 +151,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             throw new Error('Failed to fetch tradie details');
         }
 
-        const profile = await profileRes.json();
+    const profile = await profileRes.json();
+    tradieProfileData = profile; // Lưu lại để dùng khi gửi quote
         const reviews = await reviewsRes.json();
 
         console.log('Full Profile data:', profile);
@@ -230,6 +249,180 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch (err) {
         console.error('Error loading tradie details:', err);
         nameEl.innerText = 'Could not load profile.';
+    }
+
+    // --- PHẦN 2: XỬ LÝ FORM GỬI QUOTE ---
+    const quoteForm = document.getElementById('quote-form');
+    const submitButton = document.getElementById('quote-submit-button');
+    const successMessageDiv = document.getElementById('quote-success-message');
+    const errorMessageDiv = document.getElementById('quote-error-message');
+    const quoteCardEl = document.getElementById('request-quote-card');
+    // Form field refs (needed across handlers)
+    const jobDescEl = document.getElementById('job_description');
+    const preferredDateEl = document.getElementById('preferred_date');
+    const serviceAddressEl = document.getElementById('service_address');
+
+    // Helpers shared by multiple handlers
+    const setError = (el, hasError) => {
+        if (!el) return;
+        if (hasError) {
+            el.classList.remove('border-gray-300');
+            el.classList.add('border-red-500', 'focus:ring-red-500');
+        } else {
+            el.classList.remove('border-red-500', 'focus:ring-red-500');
+            el.classList.add('border-gray-300');
+        }
+    };
+    const isEmpty = (el) => !el || !String(el.value || '').trim();
+
+    if (quoteForm) {
+        quoteForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            // 0. Validate fields and outline in red if empty
+            const hasJobDescError = isEmpty(jobDescEl);
+            const hasPreferredDateError = isEmpty(preferredDateEl);
+            const hasServiceAddressError = isEmpty(serviceAddressEl);
+            setError(jobDescEl, hasJobDescError);
+            setError(preferredDateEl, hasPreferredDateError);
+            setError(serviceAddressEl, hasServiceAddressError);
+
+            if (hasJobDescError || hasPreferredDateError || hasServiceAddressError) {
+                errorMessageDiv.textContent = 'Please fill in all required fields.';
+                errorMessageDiv.classList.remove('hidden');
+                return;
+            }
+
+            // 1. Kiểm tra đăng nhập (cả localStorage và sessionStorage)
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const userString = localStorage.getItem('user') || sessionStorage.getItem('user');
+            if (!token || !userString) {
+                // Persist draft so user can continue after login
+                try {
+                    const draft = {
+                        job_description: jobDescEl.value,
+                        preferred_date: preferredDateEl.value,
+                        service_address: serviceAddressEl.value
+                    };
+                    console.log('Saving draft before redirect:', draft);
+                    sessionStorage.setItem('quote_draft', JSON.stringify(draft));
+                } catch (e) {
+                    console.error('Error saving draft:', e);
+                }
+
+                // Build redirect back to this page and section
+                const redirectPath = `${window.location.pathname}${window.location.search}#request-quote`;
+                try {
+                    sessionStorage.setItem('post_login_redirect', redirectPath);
+                    console.log('Saving redirect path:', redirectPath);
+                } catch (e) {
+                    console.error('Error saving redirect path:', e);
+                }
+
+                // Show a short inline message then redirect to login (no alert)
+                errorMessageDiv.textContent = 'Please login to request a quote. Redirecting to login…';
+                errorMessageDiv.classList.remove('hidden');
+                submitButton.disabled = true;
+                submitButton.textContent = 'Redirecting…';
+                const loginUrl = `/login?redirect=${encodeURIComponent(redirectPath)}`;
+                setTimeout(() => {
+                    window.location.href = loginUrl;
+                }, 1200);
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Sending...';
+            successMessageDiv.classList.add('hidden');
+            errorMessageDiv.classList.add('hidden');
+
+            try {
+                // 2. Thu thập dữ liệu
+                const resident = JSON.parse(userString);
+                const payload = {
+                    job_description: jobDescEl.value,
+                    preferred_date: preferredDateEl.value,
+                    service_address: serviceAddressEl.value,
+                    resident_account_id: resident.id,
+                    tradie_account_id: tradieProfileData?.account_id,
+                    service_postcode: tradieProfileData?.postcode
+                };
+
+                // 3. Gọi API tạo quote
+                const response = await fetch(`${apiBaseUrl}/api/quotes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to send request.');
+                }
+
+                // 4. Thành công
+                successMessageDiv.textContent = 'Your quote request has been sent successfully!';
+                successMessageDiv.classList.remove('hidden');
+                quoteForm.reset();
+
+            } catch (error) {
+                errorMessageDiv.textContent = error.message;
+                errorMessageDiv.classList.remove('hidden');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Request Quote';
+            }
+        });
+        // Clear error highlight on input
+        [jobDescEl, preferredDateEl, serviceAddressEl].forEach((el) => {
+            if (!el) return;
+            el.addEventListener('input', () => {
+                const empty = !String(el.value || '').trim();
+                setError(el, empty);
+                if (!empty) errorMessageDiv.classList.add('hidden');
+            });
+        });
+
+        // If returning from login, restore draft and bring form into view
+        try {
+            const draftString = sessionStorage.getItem('quote_draft');
+            console.log('Draft restoration - found draft:', draftString);
+            if (draftString) {
+                const draft = JSON.parse(draftString);
+                console.log('Parsed draft:', draft);
+                if (draft && typeof draft === 'object') {
+                    if (jobDescEl && draft.job_description) {
+                        jobDescEl.value = draft.job_description;
+                        console.log('Restored job_description:', draft.job_description);
+                    }
+                    if (preferredDateEl && draft.preferred_date) {
+                        preferredDateEl.value = draft.preferred_date;
+                        console.log('Restored preferred_date:', draft.preferred_date);
+                    }
+                    if (serviceAddressEl && draft.service_address) {
+                        serviceAddressEl.value = draft.service_address;
+                        console.log('Restored service_address:', draft.service_address);
+                    }
+                    // Show a brief message that draft was restored
+                    successMessageDiv.textContent = 'Your previous form data has been restored. You can continue with your quote request.';
+                    successMessageDiv.classList.remove('hidden');
+                    setTimeout(() => {
+                        successMessageDiv.classList.add('hidden');
+                    }, 3000);
+                }
+                sessionStorage.removeItem('quote_draft');
+            }
+        } catch (e) {
+            console.error('Error restoring draft:', e);
+        }
+
+        if (window.location.hash === '#request-quote' && quoteCardEl) {
+            quoteCardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (jobDescEl) jobDescEl.focus();
+        }
     }
 });
 </script>

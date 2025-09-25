@@ -83,6 +83,19 @@ document.addEventListener('DOMContentLoaded', function() {
             storage.setItem('token', data.token);
             storage.setItem('user', JSON.stringify(data.user));
 
+            // Redirect back if requested
+            const params = new URLSearchParams(window.location.search);
+            let redirect = params.get('redirect');
+            if (!redirect) {
+                try { redirect = sessionStorage.getItem('post_login_redirect'); } catch (e) {}
+            }
+            if (redirect) {
+                try { sessionStorage.removeItem('post_login_redirect'); } catch (e) {}
+                window.location.href = redirect;
+                return;
+            }
+
+            // Default role-based fallbacks
             if (data.user && data.user.role === 'resident') {
                 window.location.href = '/dashboard';
             } else if (data.user && data.user.role === 'tradie') {
