@@ -43,7 +43,6 @@ function renderStarsForJs(float $rating, int $reviewCount) {
             <div class="flex-grow">
                 <label for="service-filter" class="block text-sm font-medium text-gray-700">Service</label>
                 <select id="service-filter" name="service" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Services</option>
                 </select>
             </div>
             
