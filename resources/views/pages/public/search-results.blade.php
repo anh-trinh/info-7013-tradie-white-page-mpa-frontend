@@ -2,45 +2,83 @@
 
 @section('title', 'Search Results')
 
+@php
+function renderStarsForJs(float $rating, int $reviewCount) {
+    $fullStars = floor($rating);
+    $halfStar = ($rating - $fullStars) >= 0.5;
+    $emptyStars = 5 - $fullStars - ($halfStar ? 1 : 0);
+    $starSvg = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>';
+    
+    $html = '<div class="flex items-center mt-1">';
+    for ($i = 0; $i < $fullStars; $i++) $html .= str_replace('class="w-5 h-5"', 'class="w-5 h-5 text-yellow-400"', $starSvg);
+    if ($halfStar) $html .= str_replace('class="w-5 h-5"', 'class="w-5 h-5 text-yellow-400"', $starSvg);
+    for ($i = 0; $i < $emptyStars; $i++) $html .= str_replace('class="w-5 h-5"', 'class="w-5 h-5 text-gray-300"', $starSvg);
+    
+    if ($reviewCount > 0) {
+         $html .= '<span class="text-gray-600 ml-2 text-sm">' . number_format($rating, 1) . ' (' . $reviewCount . ' reviews)</span>';
+    } else {
+         $html .= '<span class="text-gray-600 ml-2 text-sm">No reviews yet</span>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+@endphp
+
 @section('content')
 <div class="container mx-auto px-6 py-12">
     <h1 class="text-3xl font-bold text-gray-800">Search Results</h1>
     <p id="results-summary" class="text-gray-600 mb-8">Searching for tradies...</p>
 
+    {{-- Filter Bar --}}
     <div class="bg-white p-4 rounded-lg shadow-md mb-8">
-        <form id="filter-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
+        <form id="filter-form" class="flex flex-col md:flex-row md:items-end gap-4">
+            
+            {{-- Location Filter --}}
+            <div class="flex-grow">
+                <label for="location-filter" class="block text-sm font-medium text-gray-700">Location</label>
+                <input type="text" id="location-filter" name="location" placeholder="Suburb or Postcode" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+            </div>
+
+            {{-- Service Filter --}}
+            <div class="flex-grow">
                 <label for="service-filter" class="block text-sm font-medium text-gray-700">Service</label>
                 <select id="service-filter" name="service" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">All Services</option>
                 </select>
             </div>
-            <div>
-                <label for="location-filter" class="block text-sm font-medium text-gray-700">Location</label>
-                <input type="text" id="location-filter" name="location" placeholder="Suburb or Postcode" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Sort by</label>
-                <select name="sort_by" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            
+            {{-- Sort by Filter --}}
+            <div class="flex-grow">
+                <label for="sort-by-filter" class="block text-sm font-medium text-gray-700">Sort by</label>
+                <select id="sort-by-filter" name="sort_by" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option>Highest Rated</option>
                     <option>Most Reviews</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Distance</label>
-                <select name="distance" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+            {{-- Distance Filter --}}
+            <div class="flex-grow">
+                <label for="distance-filter" class="block text-sm font-medium text-gray-700">Distance</label>
+                <select id="distance-filter" name="distance" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option>Within 10km</option>
                     <option>Within 25km</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Rating</label>
-                <select name="rating" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+            {{-- Rating Filter --}}
+            <div class="flex-grow">
+                <label for="rating-filter" class="block text-sm font-medium text-gray-700">Rating</label>
+                <select id="rating-filter" name="rating" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option>4+ Stars</option>
                     <option>3+ Stars</option>
                 </select>
             </div>
-            <button type="submit" class="bg-blue-600 text-white p-2 h-10 rounded-md font-semibold hover:bg-blue-700">Apply Filters</button>
+
+            {{-- Apply Button --}}
+            <div class="flex-shrink-0">
+                <button type="submit" class="w-full bg-blue-600 text-white p-2 h-10 rounded-md font-semibold hover:bg-blue-700">Apply Filters</button>
+            </div>
+
         </form>
     </div>
     <div id="results-container" class="space-y-6">
@@ -57,6 +95,49 @@ document.addEventListener('DOMContentLoaded', function() {
     const serviceFilterSelect = document.getElementById('service-filter');
     const resultsContainer = document.getElementById('results-container');
     const resultsSummary = document.getElementById('results-summary');
+
+    // Client-side star renderer (keeps behavior consistent with tradie details)
+    function renderStarRating(rating = 0, reviewCount = 0, showText = true) {
+        const r = Math.min(5, Math.max(0, Number(rating) || 0));
+        const count = Number(reviewCount) || 0;
+        const full = Math.floor(r);
+        const half = (r - full) >= 0.5 ? 1 : 0;
+        const empty = 5 - full - half;
+
+        const starPath = 'M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z';
+        const fullStar = () => `<svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="${starPath}" /></svg>`;
+        const emptyStar = () => `<svg class="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path d="${starPath}" /></svg>`;
+        const halfStarId = `halfClip-${Math.random().toString(36).slice(2)}`;
+        const halfStar = () => `
+            <svg class="w-5 h-5" viewBox="0 0 20 20">
+              <defs>
+                <clipPath id="${halfStarId}"><rect x="0" y="0" width="10" height="20"/></clipPath>
+              </defs>
+              <path d="${starPath}" fill="#D1D5DB"></path>
+              <g clip-path="url(#${halfStarId})">
+                <path d="${starPath}" fill="#FBBF24"></path>
+              </g>
+            </svg>`;
+
+        let starsHtml = '';
+        for (let i = 0; i < full; i++) starsHtml += fullStar();
+        if (half) starsHtml += halfStar();
+        for (let i = 0; i < empty; i++) starsHtml += emptyStar();
+
+        let textHtml = '';
+        if (showText) {
+            if (r > 0 && count > 0) {
+                const reviewWord = count === 1 ? 'review' : 'reviews';
+                textHtml = `<span class="text-gray-600 ml-2 text-sm">${r.toFixed(1)} (${count} ${reviewWord})</span>`;
+            } else if (r > 0) {
+                textHtml = `<span class="text-gray-600 ml-2 text-sm">${r.toFixed(1)} (No reviews yet)</span>`;
+            } else {
+                textHtml = `<span class="text-gray-600 ml-2 text-sm">No reviews yet</span>`;
+            }
+        }
+
+        return `<div class="flex items-center mt-1">${starsHtml}${textHtml}</div>`;
+    }
 
     async function populateServiceFilter() {
         try {
@@ -93,6 +174,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) throw new Error('Failed to fetch tradies');
             const tradies = await response.json();
 
+            console.log('Full API response:', tradies); // Debug: toàn bộ response
+            console.log('First tradie data:', tradies[0]); // Debug: tradie đầu tiên
+            
             resultsContainer.innerHTML = '';
             resultsSummary.textContent = `Found ${Array.isArray(tradies) ? tradies.length : 0} tradies matching your criteria`;
 
@@ -101,26 +185,63 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            tradies.forEach(tradie => {
+            // Process all tradies with rating calculation
+            const tradiePromises = tradies.map(async (tradie, index) => {
                 const initial = (tradie.business_name && tradie.business_name.charAt(0)) || 'T';
                 const name = tradie.business_name || 'N/A';
-                const rate = tradie.base_rate ? `${tradie.base_rate}` : '';
+                const rate = tradie.base_rate ? `$${tradie.base_rate}/hour` : 'Rate on enquiry';
                 const postcode = tradie.postcode || 'N/A';
+                const locationDisplay = postcode !== 'N/A' ? `Location: ${postcode}` : 'Location: Not specified';
                 const id = tradie.id;
+                
+                // Get real rating data from API - now using backend aggregation
+                let rating = parseFloat(tradie.average_rating || 0);
+                let reviewCount = parseInt(tradie.reviews_count || 0);
 
-                const tradieCardHtml = `
+                console.log(`Tradie ${name}: Backend provided rating=${rating}, reviewCount=${reviewCount}`);
+                
+                // Fallback: If backend aggregation is 0, try to fetch and calculate from individual reviews
+                if (rating === 0 && reviewCount === 0) {
+                    try {
+                        const reviewsResponse = await fetch(`${apiBaseUrl}/api/reviews/tradie/${id}`);
+                        if (reviewsResponse.ok) {
+                            const reviews = await reviewsResponse.json();
+                            if (Array.isArray(reviews) && reviews.length > 0) {
+                                const totalRating = reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
+                                rating = totalRating / reviews.length;
+                                reviewCount = reviews.length;
+                                console.log(`Tradie ${name}: Calculated from reviews rating=${rating.toFixed(1)}, count=${reviewCount}`);
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Failed to fetch reviews for tradie ${id}:`, error);
+                    }
+                }
+                
+                // Render rating on client to avoid server-side placeholder issues
+                const ratingHtml = renderStarRating(rating, reviewCount, true);
+
+                return `
                     <div class="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
                         <div class="flex items-center">
                             <div class="bg-blue-500 text-white w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-full font-bold text-2xl mr-6">${initial}</div>
                             <div>
                                 <h2 class="text-xl font-bold text-blue-700">${name} <span class="text-lg font-normal text-gray-600">${rate}</span></h2>
-                                <p class="text-sm text-gray-500 mt-1">${postcode}</p>
+                                ${ratingHtml}
+                                <p class="text-sm text-gray-500 mt-1">${locationDisplay}</p>
                             </div>
                         </div>
                         <a href="/tradie/${id}" class="bg-gray-800 text-white px-6 py-3 rounded-md font-semibold hover:bg-black">View Profile</a>
                     </div>
                 `;
-                resultsContainer.insertAdjacentHTML('beforeend', tradieCardHtml);
+            });
+            
+            // Wait for all tradies to be processed
+            const tradieCards = await Promise.all(tradiePromises);
+            
+            // Add all cards to the container
+            tradieCards.forEach(cardHtml => {
+                resultsContainer.insertAdjacentHTML('beforeend', cardHtml);
             });
         } catch (error) {
             console.error('Failed to fetch tradies:', error);
