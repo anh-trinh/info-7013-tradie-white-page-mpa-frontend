@@ -190,30 +190,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const locationDisplay = postcode !== 'N/A' ? `Location: ${postcode}` : 'Location: Not specified';
                 const id = tradie.id;
                 
-                // Get real rating data from API - now using backend aggregation
-                let rating = parseFloat(tradie.average_rating || 0);
-                let reviewCount = parseInt(tradie.reviews_count || 0);
-
-                console.log(`Tradie ${name}: Backend provided rating=${rating}, reviewCount=${reviewCount}`);
-                
-                // Fallback: If backend aggregation is 0, try to fetch and calculate from individual reviews
-                if (rating === 0 && reviewCount === 0) {
-                    try {
-                        const reviewsResponse = await fetch(`${apiBaseUrl}/api/reviews/tradie/${id}`);
-                        if (reviewsResponse.ok) {
-                            const reviews = await reviewsResponse.json();
-                            if (Array.isArray(reviews) && reviews.length > 0) {
-                                const totalRating = reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
-                                rating = totalRating / reviews.length;
-                                reviewCount = reviews.length;
-                                console.log(`Tradie ${name}: Calculated from reviews rating=${rating.toFixed(1)}, count=${reviewCount}`);
-                            }
-                        }
-                    } catch (error) {
-                        console.error(`Failed to fetch reviews for tradie ${id}:`, error);
-                    }
-                }
-                
+                // Use backend aggregation only (drop extra reviews fetch)
+                const rating = parseFloat(tradie.average_rating ?? 0);
+                const reviewCount = parseInt(tradie.reviews_count ?? 0);
                 return { id, name, initial, rate, locationDisplay, rating, reviewCount };
             });
             
@@ -265,16 +244,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function initializePage() {
-        await populateServiceFilter();
-
         const initialParams = new URLSearchParams(window.location.search);
         const initialService = initialParams.get('service');
         const initialLocation = initialParams.get('location');
 
+        // First populate services
+        await populateServiceFilter();
+
+        // Sync initial location
         const locationFilterInput = document.getElementById('location-filter');
         if (initialLocation) locationFilterInput.value = initialLocation;
+
+        // Ensure the service exists then select it; if missing, add it so selection persists
         if (initialService) {
-            setTimeout(() => { serviceFilterSelect.value = initialService; }, 100);
+            const hasOption = Array.from(serviceFilterSelect.options).some(opt => opt.value === initialService);
+            if (!hasOption) {
+                const opt = document.createElement('option');
+                opt.value = initialService;
+                opt.textContent = initialService;
+                serviceFilterSelect.appendChild(opt);
+            }
+            serviceFilterSelect.value = initialService;
         }
 
         fetchAndDisplayTradies();
