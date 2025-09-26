@@ -4,25 +4,19 @@ FROM php:8.1-fpm-alpine
 WORKDIR /var/www
 
 # Build args (can be overridden at build time)
-ARG INSTALL_XDEBUG=1
-ARG XDEBUG_VERSION=3.3.2
+ARG INSTALL_XDEBUG=0
 
-# Install system dependencies & PHP extensions
-# Make xdebug installation optional & resilient (pin version + fallback)
+# Install system dependencies & PHP extensions (skip Xdebug by default - PECL instability)
 RUN set -eux; \
   apk update; \
-  apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpng-dev libzip-dev; \
+  apk add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers libpng-dev libzip-dev; \
   apk add --no-cache git bash curl libpng libzip zip unzip; \
   docker-php-ext-install pdo pdo_mysql; \
-  if [ "${INSTALL_XDEBUG}" = "1" ]; then \
-    (pecl channel-update pecl.php.net || true); \
-    if ! pecl install xdebug-${XDEBUG_VERSION}; then \
-      echo 'Falling back to latest xdebug'; \
-      pecl install xdebug || pecl install xdebug-3.2.2; \
-    fi; \
-    docker-php-ext-enable xdebug; \
+  if [ "${INSTALL_XDEBUG:-0}" = "1" ]; then \
+    echo 'Attempting Xdebug install (enabled via build arg INSTALL_XDEBUG=1)'; \
+    if pecl install xdebug; then docker-php-ext-enable xdebug; else echo 'Xdebug install failed - continuing without it'; fi; \
   else \
-    echo 'Skipping Xdebug installation'; \
+    echo 'Skipping Xdebug (INSTALL_XDEBUG=0 or network issues)'; \
   fi; \
   apk del .build-deps || true; \
   rm -rf /tmp/pear /var/cache/apk/*
