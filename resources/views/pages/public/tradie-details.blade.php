@@ -42,7 +42,7 @@
             <div id="request-quote-card" class="bg-white p-6 rounded-lg shadow-md">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">Request Quote</h2>
 
-                {{-- Div để hiển thị thông báo --}}
+                {{-- Message display containers --}}
                 <div id="quote-success-message" class="hidden bg-green-100 text-green-800 p-3 rounded mb-4"></div>
                 <div id="quote-error-message" class="hidden bg-red-100 text-red-800 p-3 rounded mb-4"></div>
 
@@ -55,7 +55,7 @@
                         <label for="preferred_date" class="block text-sm font-medium text-gray-700">Preferred Date</label>
                         <input id="preferred_date" type="date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
                     </div>
-                    {{-- Thêm các trường khác nếu cần, ví dụ Service Address --}}
+                    {{-- Additional fields if needed, e.g. Service Address --}}
                     <div>
                         <label for="service_address" class="block text-sm font-medium text-gray-700">Service Address</label>
                         <input id="service_address" type="text" placeholder="e.g., 123 Main St, Sydney" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
@@ -75,7 +75,7 @@
 document.addEventListener('DOMContentLoaded', async function() {
     const tradieId = {{ $id }};
     const apiBaseUrl = "{{ env('API_BASE_URL') }}";
-    let tradieProfileData = null; // Lưu profile để gửi quote
+    let tradieProfileData = null; // Store profile for quote request
     // ...existing code...
     function renderStarRating(rating = 0, reviewCount = 0, showText = true) {
         const r = Math.min(5, Math.max(0, Number(rating) || 0));
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
     const profile = await profileRes.json();
-    tradieProfileData = profile; // Lưu lại để dùng khi gửi quote
+    tradieProfileData = profile; // Store for quote submission
         const reviews = await reviewsRes.json();
 
         console.log('Full Profile data:', profile);
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         nameEl.innerText = 'Could not load profile.';
     }
 
-    // --- PHẦN 2: XỬ LÝ FORM GỬI QUOTE ---
+    // --- SECTION 2: QUOTE FORM HANDLING ---
     const quoteForm = document.getElementById('quote-form');
     const submitButton = document.getElementById('quote-submit-button');
     const successMessageDiv = document.getElementById('quote-success-message');
@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
 
-            // 1. Kiểm tra đăng nhập (cả localStorage và sessionStorage)
+            // 1. Check authentication (both localStorage and sessionStorage)
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             const userString = localStorage.getItem('user') || sessionStorage.getItem('user');
             if (!token || !userString) {
@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     service_postcode: tradieProfileData?.postcode
                 };
 
-                // 3. Gọi API tạo quote
+                // 3. Call quote API
                 const response = await fetch(`${apiBaseUrl}/api/quotes`, {
                     method: 'POST',
                     headers: {
@@ -362,7 +362,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     throw new Error(data.message || 'Failed to send request.');
                 }
 
-                // 4. Thành công
+                // 4. Success - display confirmation and reset form
                 successMessageDiv.textContent = 'Your quote request has been sent successfully!';
                 successMessageDiv.classList.remove('hidden');
                 quoteForm.reset();
