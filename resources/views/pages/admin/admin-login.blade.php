@@ -68,7 +68,7 @@
                 submitButton.textContent = 'Signing In...';
                 errorMessageDiv.classList.add('hidden');
 
-                // 1. Thu thập dữ liệu từ form
+                // 1. Collect form data
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
 
@@ -82,7 +82,7 @@
                 }
 
                 try {
-                    // 2. Gọi đến API login (endpoint của user, backend sẽ tự check role)
+                    // 2. Call login API (user endpoint, backend will check role)
                     const response = await fetch(`${apiBaseUrl}/api/accounts/login`, {
                         method: 'POST',
                         headers: { 
@@ -98,17 +98,17 @@
                         throw new Error(data.message || 'Incorrect email or password.');
                     }
                     
-                    // 3. Kiểm tra vai trò trả về từ API
+                    // 3. Check user role from API response
                     if (data.user.role !== 'admin') {
                         throw new Error('This account does not have administrator privileges.');
                     }
 
-                    // 4. Đăng nhập thành công, lưu token và chuyển hướng
-                    // Lưu token riêng cho admin để tránh xung đột nếu họ cũng có tài khoản user
+                    // 4. Successful login: save token and redirect
+                    // Store admin token separately to avoid conflicts with regular user accounts
                     localStorage.setItem('admin_token', data.token);
                     localStorage.setItem('admin_user', JSON.stringify(data.user));
                     
-                    // Xóa token của user thường nếu có
+                    // Remove regular user tokens if any
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
 

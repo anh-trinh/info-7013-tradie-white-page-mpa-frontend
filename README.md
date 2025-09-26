@@ -17,6 +17,64 @@ This project is a PHP (Lumen) application for the Tradie White Page multi-page f
 
 3. Access the app at [http://localhost:8000](http://localhost:8000)
 
+## Run with Docker
+
+You can run the Lumen MPA using Docker (PHP-FPM + Nginx).
+
+### 1. Build & start (docker compose)
+
+```bash
+docker compose up --build -d
+```
+
+Access the app at: http://localhost:8080
+
+### 2. Environment variables
+
+Create a `.env` (copy from `.env.example`) before building so PHP dependencies using env vars get correct values. You can also override at runtime:
+
+```bash
+API_BASE_URL=https://api.example.test APP_DEBUG=true docker compose up -d --build
+```
+
+### 3. Executing Artisan / Composer inside container
+
+```bash
+docker compose exec app php artisan list
+docker compose exec app composer install
+```
+
+### 4. Xdebug (optional)
+
+Xdebug is installed. To enable remote debugging set in your `.env` (or via compose env):
+
+```
+XDEBUG_MODE=develop,debug
+XDEBUG_CONFIG=client_host=host.docker.internal client_port=9003
+```
+
+Then restart containers.
+
+### 5. Rebuild without dev dependencies
+
+```bash
+COMPOSER_NO_DEV=1 docker compose build --no-cache app
+```
+
+### 6. Clean up
+
+```bash
+docker compose down -v
+```
+
+### 7. Without docker compose (manual)
+
+```bash
+docker build -t tradie-mpa-frontend .
+docker run --rm -p 9000:9000 --name tradie-mpa-frontend tradie-mpa-frontend
+```
+Then run a separate Nginx container mounting `nginx.conf` and pointing to `php-fpm:9000` (compose automates this for you).
+
 ## Folder Structure
 
 ```
